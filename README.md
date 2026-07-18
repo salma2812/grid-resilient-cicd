@@ -347,17 +347,16 @@ Output:
     › Carbon intensity: 420 gCO₂/kWh
 ```
 
-## 🤝 Team
+## 👥 Team
 
-| Role | Module |
-|------|--------|
-| Member 1 | Outage Prediction Engine |
-| Member 2 | Core Orchestrator |
-| Member 3 | Checkpoint & Resume |
-| Member 4 | GitHub Actions CI/CD Integration |
-| Member 5 | Dashboard & Alerts |
-| Integration | Cost-Aware Scheduler + Full-Stack Dashboard |
 
+| 👤 Name | 💻 GitHub | 🔗 LinkedIn |
+|---------|----------|------------|
+| Aya Sayed | [GitHub](https://github.com/14930) | [LinkedIn](https://www.linkedin.com/in/aya-sayed-bb6a80397) |
+| Maryam Moustafa | [GitHub](https://github.com/maryamkhalid-06) | [LinkedIn](https://www.linkedin.com/in/maryam-moustafa-653257378) |
+| Malak Mohamed | [GitHub](https://github.com/engy27005) | [LinkedIn](https://www.linkedin.com/in/engy-wael-284277342/) |
+| Alaa Sayed | [GitHub](https://github.com/engyelsarta) | [LinkedIn](https://www.linkedin.com/in/engy-elsarta-6a6a06283)
+| Salma  | [GitHub](https://github.com/mazenElzeiny) | [LinkedIn](https://www.linkedin.com/in/mazenelzeiny) |
 ## 📄 License
 
 MIT License — see [LICENSE](LICENSE) for details.
