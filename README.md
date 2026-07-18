@@ -354,7 +354,7 @@ Output:
 |---------|----------|------------|
 | Aya Sayed | [GitHub](https://github.com/14930) | [LinkedIn](https://www.linkedin.com/in/aya-sayed-bb6a80397) |
 | Maryam Moustafa | [GitHub](https://github.com/maryamkhalid-06) | [LinkedIn](https://www.linkedin.com/in/maryam-moustafa-653257378) |
-| Malak Mohamed | [GitHub](https://github.com/engy27005) | [LinkedIn](https://www.linkedin.com/in/engy-wael-284277342/) |
+| Malak Mohamed | [GitHub](https://github.com/malakmohamedrefaat) | [LinkedIn](https://www.linkedin.com/in/malak-mohamed-24b605264/) |
 | Alaa Sayed | [GitHub](https://github.com/engyelsarta) | [LinkedIn](https://www.linkedin.com/in/engy-elsarta-6a6a06283)
 | Salma  | [GitHub](https://github.com/mazenElzeiny) | [LinkedIn](https://www.linkedin.com/in/mazenelzeiny) |
 ## 📄 License
