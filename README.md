@@ -1,7 +1,5 @@
-<p align="center">
-  <img src="docs/screenshots/hero-section.png" alt="Grid-Resilient CI/CD Dashboard" width="100%" />
-</p>
-
+<video src="./docs\video intro\Screen Recording 2026-08-21 163400.mp4" controls width="100%">
+</video>
 <h1 align="center">⚡ Grid-Resilient CI/CD</h1>
 
 <p align="center">
