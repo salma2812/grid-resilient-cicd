@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/screenshots/dashboard_hero.png" alt="Grid-Resilient CI/CD Dashboard" width="100%" />
+  <img src="docs/screenshots/hero-section.png" alt="Grid-Resilient CI/CD Dashboard" width="100%" />
 </p>
 
 <h1 align="center">⚡ Grid-Resilient CI/CD</h1>
@@ -119,22 +119,25 @@ Optimises pipeline execution timing based on **6 factors**:
 ### 📊 Real-Time Dashboard
 
 <details>
-<summary><strong>🖼️ Dashboard Screenshots (click to expand)</strong></summary>
+<summary><strong>🖼️ Dashboard UI & Themes (click to expand)</strong></summary>
 
-#### Normal Operation — All Systems Go
-<img src="docs/screenshots/dashboard_scheduler.png" alt="Dashboard - Normal" width="100%" />
+#### Hero Landing Section
+<img src="docs/screenshots/hero-section.png" alt="Hero Section" width="100%" />
 
-#### Checkpointing — Pre-empting Outage  
-<img src="docs/screenshots/state_checkpoint.png" alt="Dashboard - Checkpoint" width="100%" />
+#### Industrial Electric Theme
+<img src="docs/screenshots/dashboard-industrial.png" alt="Dashboard - Industrial" width="100%" />
 
-#### Paused — Power Loss Detected
-<img src="docs/screenshots/state_paused.png" alt="Dashboard - Paused" width="100%" />
+#### High-Voltage Alert Theme
+<img src="docs/screenshots/dashboard-high-voltage.png" alt="Dashboard - High Voltage" width="100%" />
 
-#### Resuming — Grid Restored
-<img src="docs/screenshots/state_resumed.png" alt="Dashboard - Resumed" width="100%" />
+#### Cyber Grid Theme
+<img src="docs/screenshots/dashboard-cyber-grid.png" alt="Dashboard - Cyber Grid" width="100%" />
 
-#### System Health & Alerts
-<img src="docs/screenshots/dashboard_health.png" alt="Dashboard - Health" width="100%" />
+#### Minimal Slate Theme
+<img src="docs/screenshots/dashboard-minimal-slate.png" alt="Dashboard - Minimal Slate" width="100%" />
+
+#### Outage Cascade Simulation
+<img src="docs/screenshots/dashboard-simulation.png" alt="Dashboard - Simulation" width="100%" />
 
 </details>
 
