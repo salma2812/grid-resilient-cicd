@@ -254,6 +254,15 @@ def resume():
         return {"done": False, "error": str(exc)}
 
 
+@app.get("/")
+def root():
+    return {
+        "service": "Checkpointing & Resume Module",
+        "status": "online",
+        "endpoints": ["/checkpoint", "/resume", "/health", "/docs"],
+    }
+
+
 @app.get("/health")
 def health():
     return {

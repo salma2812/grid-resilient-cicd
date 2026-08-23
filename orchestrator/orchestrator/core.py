@@ -155,16 +155,24 @@ class Orchestrator:
         """Blocking background loop using APScheduler, as recommended by the
         team task doc. Ctrl+C to stop cleanly.
         """
-        from apscheduler.schedulers.blocking import BlockingScheduler
-
         interval = poll_interval or config.POLL_INTERVAL_SECONDS
-        scheduler = BlockingScheduler()
-        scheduler.add_job(
-            self.poll_once, "interval", seconds=interval,
-            next_run_time=datetime.now(),  # fire immediately, then every `interval`s
-        )
         logger.info("Orchestrator starting - polling every %ss (region=%s)", interval, self.region)
         try:
+            from apscheduler.schedulers.blocking import BlockingScheduler
+            scheduler = BlockingScheduler()
+            scheduler.add_job(
+                self.poll_once, "interval", seconds=interval,
+                next_run_time=datetime.now(),  # fire immediately, then every `interval`s
+            )
             scheduler.start()
+        except (ImportError, ModuleNotFoundError):
+            import time
+            logger.info("APScheduler not found; falling back to simple sleep loop.")
+            try:
+                while True:
+                    self.poll_once()
+                    time.sleep(interval)
+            except (KeyboardInterrupt, SystemExit):
+                logger.info("Orchestrator stopped.")
         except (KeyboardInterrupt, SystemExit):
             logger.info("Orchestrator stopped.")

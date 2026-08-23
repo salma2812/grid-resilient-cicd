@@ -23,9 +23,14 @@ from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-from .models import JobPriority, SchedulerInput
-from .scheduler import CostAwareScheduler
-from .simulators import get_all_simulated_metrics
+try:
+    from .models import JobPriority, SchedulerInput
+    from .scheduler import CostAwareScheduler
+    from .simulators import get_all_simulated_metrics
+except ImportError:
+    from models import JobPriority, SchedulerInput
+    from scheduler import CostAwareScheduler
+    from simulators import get_all_simulated_metrics
 
 logger = logging.getLogger("cost_aware_scheduler.api")
 
@@ -107,13 +112,17 @@ def schedule_explicit(req: ScheduleRequest):
 def schedule_auto(
     region: str = Query(DEFAULT_REGION, description="Grid region"),
     job_priority: str = Query("Medium", description="High, Medium, or Low"),
+    outage_probability: Optional[float] = Query(None, description="Optional explicit outage probability override"),
 ):
     """
     Evaluate using the Prediction Engine for outage probability and
     simulated values for CPU, memory, electricity, and carbon.
     """
-    # Get outage probability from Prediction Engine (with mock fallback)
-    outage_prob = _get_outage_probability(region)
+    if outage_probability is not None:
+        outage_prob = outage_probability
+    else:
+        # Get outage probability from Prediction Engine (with mock fallback)
+        outage_prob = _get_outage_probability(region)
     metrics = get_all_simulated_metrics()
 
     try:
@@ -148,6 +157,16 @@ def get_metrics():
     return {
         **metrics,
         "timestamp": datetime.now().isoformat(),
+    }
+
+
+@app.get("/")
+def root():
+    """Root endpoint returning service status."""
+    return {
+        "service": "Cost-Aware Scheduler",
+        "status": "online",
+        "endpoints": ["/schedule", "/metrics", "/health", "/docs"],
     }
 
 

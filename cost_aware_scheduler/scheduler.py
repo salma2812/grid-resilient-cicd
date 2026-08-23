@@ -22,7 +22,10 @@ import logging
 from dataclasses import dataclass, field
 from typing import List
 
-from .models import JobPriority, SchedulerAction, SchedulerDecision, SchedulerInput
+try:
+    from .models import JobPriority, SchedulerAction, SchedulerDecision, SchedulerInput
+except ImportError:
+    from models import JobPriority, SchedulerAction, SchedulerDecision, SchedulerInput
 
 logger = logging.getLogger("cost_aware_scheduler")
 
