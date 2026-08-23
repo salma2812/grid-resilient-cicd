@@ -1,0 +1,7 @@
+actions-runner/
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+.env
