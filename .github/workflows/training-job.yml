@@ -1,5 +1,4 @@
 name: Protected Training Job
-
 on:
   workflow_dispatch:
     inputs:
@@ -13,9 +12,21 @@ concurrency:
   group: grid-resilient-training
   cancel-in-progress: false
 
+env:
+  # Running on a self-hosted runner means this workflow executes on the
+  # SAME machine as Member 3's checkpoint service — so "localhost" is
+  # correct here. No tunnel, no VPS, no public URL needed.
+  # Still overridable via a repo variable in case the service ever runs
+  # on a different port or machine.
+  CHECKPOINT_SERVICE_URL: ${{ vars.CHECKPOINT_SERVICE_URL || 'http://localhost:8001' }}
+
 jobs:
   train:
-    runs-on: ubuntu-latest
+    # This job now runs on YOUR machine (the one running ./run.sh),
+    # not a GitHub-hosted VM. Make sure the checkpoint service
+    # (uvicorn app:app --port 8001) is running on this same machine
+    # before triggering the workflow.
+    runs-on: self-hosted
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -38,17 +49,64 @@ jobs:
           echo "::error::Grid risk is currently HIGH (state=paused). Refusing to start a new run. Wait for grid_risk_clear from the Orchestrator."
           exit 1
 
+      # ---- REAL integration with Member 3's Checkpoint Service ----
       - name: Restore last checkpoint (Member 3)
+        id: restore
         if: inputs.resume_from_checkpoint == 'true'
         run: |
-          echo "Resuming from last checkpoint via Member 3's checkpoint service..."
-          echo "(placeholder) checkpoint restored, continuing from last saved step"
+          echo "Calling checkpoint service at $CHECKPOINT_SERVICE_URL/resume ..."
+
+          HTTP_CODE=$(curl -s -o response.json -w "%{http_code}" \
+            -X POST "$CHECKPOINT_SERVICE_URL/resume" \
+            -H "Content-Type: application/json" \
+            --max-time 15 \
+            --retry 3 \
+            --retry-delay 2 \
+            --retry-connrefused) || HTTP_CODE="000"
+
+          echo "HTTP status: $HTTP_CODE"
+
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "::warning::Checkpoint service unreachable or returned $HTTP_CODE. Falling back to a fresh run (epoch 0)."
+            echo "resumed=false" >> "$GITHUB_OUTPUT"
+            echo "checkpoint_path=" >> "$GITHUB_OUTPUT"
+            echo "start_epoch=0" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          cat response.json | jq .
+
+          CHECKPOINT_PATH=$(jq -r '.checkpoint_path // empty' response.json)
+          START_EPOCH=$(jq -r '.epoch // 0' response.json)
+
+          if [ -z "$CHECKPOINT_PATH" ]; then
+            echo "::warning::Service responded 200 but no checkpoint_path was found. Falling back to a fresh run."
+            echo "resumed=false" >> "$GITHUB_OUTPUT"
+            echo "checkpoint_path=" >> "$GITHUB_OUTPUT"
+            echo "start_epoch=0" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "Restored checkpoint: $CHECKPOINT_PATH (epoch $START_EPOCH)"
+          echo "resumed=true" >> "$GITHUB_OUTPUT"
+          echo "checkpoint_path=$CHECKPOINT_PATH" >> "$GITHUB_OUTPUT"
+          echo "start_epoch=$START_EPOCH" >> "$GITHUB_OUTPUT"
 
       - name: Run the protected job
+        env:
+          RESUMED: ${{ steps.restore.outputs.resumed || 'false' }}
+          CHECKPOINT_PATH: ${{ steps.restore.outputs.checkpoint_path }}
+          START_EPOCH: ${{ steps.restore.outputs.start_epoch || '0' }}
         run: |
+          if [ "$RESUMED" = "true" ]; then
+            echo "Resuming training from $CHECKPOINT_PATH, starting at epoch $START_EPOCH"
+          else
+            echo "Starting fresh training run from epoch 0"
+          fi
+
           echo "Training/deployment job running..."
           for i in $(seq 1 30); do
-            echo "step $i/30..."
+            echo "step $i/30 (epoch offset: $START_EPOCH)..."
             sleep 2
           done
           echo "Job finished normally."
