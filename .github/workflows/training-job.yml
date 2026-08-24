@@ -65,7 +65,7 @@ jobs:
       # ---- REAL integration with Member 3's Checkpoint Service ----
       - name: Restore last checkpoint (Member 3)
         id: restore
-        if: inputs.resume_from_checkpoint == 'true'
+        if: ${{ inputs.resume_from_checkpoint == true || inputs.resume_from_checkpoint == 'true' }}
         shell: python
         env:
           CHECKPOINT_SERVICE_URL: ${{ env.CHECKPOINT_SERVICE_URL }}
