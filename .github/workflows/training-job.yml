@@ -1,4 +1,5 @@
 name: Protected Training Job
+
 on:
   workflow_dispatch:
     inputs:
@@ -13,103 +14,188 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  # Running on a self-hosted runner means this workflow executes on the
-  # SAME machine as Member 3's checkpoint service — so "localhost" is
-  # correct here. No tunnel, no VPS, no public URL needed.
-  # Still overridable via a repo variable in case the service ever runs
-  # on a different port or machine.
   CHECKPOINT_SERVICE_URL: ${{ vars.CHECKPOINT_SERVICE_URL || 'http://localhost:8001' }}
 
 jobs:
   train:
-    # This job now runs on YOUR machine (the one running ./run.sh),
-    # not a GitHub-hosted VM. Make sure the checkpoint service
-    # (uvicorn app:app --port 8001) is running on this same machine
-    # before triggering the workflow.
     runs-on: self-hosted
-    defaults:
-     run:
-      shell: 'C:\Program Files\Git\bin\bash.exe --noprofile --norc -eo pipefail {0}'
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # ---- Read grid-risk state ----
       - name: Read current grid-risk state
         id: risk
+        shell: python
         run: |
-          STATE_FILE=".grid-resilient/state.json"
-          if [ -f "$STATE_FILE" ]; then
-            STATUS=$(jq -r '.status // "normal"' "$STATE_FILE")
-          else
-            STATUS="normal"
-          fi
-          echo "Current risk status: $STATUS"
-          echo "status=$STATUS" >> "$GITHUB_OUTPUT"
+          import os
+          import json
 
+          state_file = ".grid-resilient/state.json"
+          status = "normal"
+
+          if os.path.exists(state_file):
+              try:
+                  with open(state_file, "r", encoding="utf-8") as f:
+                      data = json.load(f)
+                      status = data.get("status", "normal")
+              except Exception:
+                  status = "normal"
+
+          print(f"Current risk status: {status}")
+
+          github_output = os.getenv("GITHUB_OUTPUT")
+          if github_output:
+              with open(github_output, "a", encoding="utf-8") as f:
+                  f.write(f"status={status}\n")
+
+      # ---- Refuse unsafe fresh run ----
       - name: Refuse to start a fresh run while risk is high
         if: steps.risk.outputs.status == 'paused' && inputs.resume_from_checkpoint != 'true'
+        shell: python
         run: |
-          echo "::error::Grid risk is currently HIGH (state=paused). Refusing to start a new run. Wait for grid_risk_clear from the Orchestrator."
-          exit 1
+          print(
+              "::error::Grid risk is currently HIGH (state=paused). "
+              "Refusing to start a new run. "
+              "Wait for grid_risk_clear from the Orchestrator."
+          )
+          raise SystemExit(1)
 
       # ---- REAL integration with Member 3's Checkpoint Service ----
       - name: Restore last checkpoint (Member 3)
         id: restore
         if: inputs.resume_from_checkpoint == 'true'
+        shell: python
+        env:
+          CHECKPOINT_SERVICE_URL: ${{ env.CHECKPOINT_SERVICE_URL }}
         run: |
-          echo "Calling checkpoint service at $CHECKPOINT_SERVICE_URL/resume ..."
+          import os
+          import json
+          import urllib.request
+          import urllib.error
+          import time
 
-          HTTP_CODE=$(curl -s -o response.json -w "%{http_code}" \
-            -X POST "$CHECKPOINT_SERVICE_URL/resume" \
-            -H "Content-Type: application/json" \
-            --max-time 15 \
-            --retry 3 \
-            --retry-delay 2 \
-            --retry-connrefused) || HTTP_CODE="000"
+          base_url = os.environ["CHECKPOINT_SERVICE_URL"]
+          url = f"{base_url}/resume"
 
-          echo "HTTP status: $HTTP_CODE"
+          print(f"Calling checkpoint service at {url} ...")
 
-          if [ "$HTTP_CODE" != "200" ]; then
-            echo "::warning::Checkpoint service unreachable or returned $HTTP_CODE. Falling back to a fresh run (epoch 0)."
-            echo "resumed=false" >> "$GITHUB_OUTPUT"
-            echo "checkpoint_path=" >> "$GITHUB_OUTPUT"
-            echo "start_epoch=0" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
+          response_data = None
+          http_code = 0
 
-          cat response.json | jq .
+          for attempt in range(1, 4):
+              try:
+                  request = urllib.request.Request(
+                      url,
+                      method="POST",
+                      headers={
+                          "Content-Type": "application/json"
+                      }
+                  )
 
-          CHECKPOINT_PATH=$(jq -r '.checkpoint_path // empty' response.json)
-          START_EPOCH=$(jq -r '.epoch // 0' response.json)
+                  with urllib.request.urlopen(request, timeout=15) as response:
+                      http_code = response.status
+                      response_data = response.read().decode("utf-8")
 
-          if [ -z "$CHECKPOINT_PATH" ]; then
-            echo "::warning::Service responded 200 but no checkpoint_path was found. Falling back to a fresh run."
-            echo "resumed=false" >> "$GITHUB_OUTPUT"
-            echo "checkpoint_path=" >> "$GITHUB_OUTPUT"
-            echo "start_epoch=0" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
+                  break
 
-          echo "Restored checkpoint: $CHECKPOINT_PATH (epoch $START_EPOCH)"
-          echo "resumed=true" >> "$GITHUB_OUTPUT"
-          echo "checkpoint_path=$CHECKPOINT_PATH" >> "$GITHUB_OUTPUT"
-          echo "start_epoch=$START_EPOCH" >> "$GITHUB_OUTPUT"
+              except urllib.error.HTTPError as e:
+                  http_code = e.code
+                  try:
+                      response_data = e.read().decode("utf-8")
+                  except Exception:
+                      response_data = None
+                  break
 
+              except Exception as e:
+                  print(f"Attempt {attempt}/3 failed: {e}")
+
+                  if attempt < 3:
+                      time.sleep(2)
+
+          print(f"HTTP status: {http_code}")
+
+          github_output = os.environ.get("GITHUB_OUTPUT")
+
+          def set_outputs(resumed, checkpoint_path="", start_epoch=0):
+              if github_output:
+                  with open(github_output, "a", encoding="utf-8") as f:
+                      f.write(f"resumed={str(resumed).lower()}\n")
+                      f.write(f"checkpoint_path={checkpoint_path}\n")
+                      f.write(f"start_epoch={start_epoch}\n")
+
+          if http_code != 200 or not response_data:
+              print(
+                  f"::warning::Checkpoint service unreachable or returned "
+                  f"{http_code}. Falling back to a fresh run (epoch 0)."
+              )
+              set_outputs(False)
+              raise SystemExit(0)
+
+          try:
+              data = json.loads(response_data)
+              print(json.dumps(data, indent=2))
+          except Exception:
+              print(
+                  "::warning::Checkpoint service returned invalid JSON. "
+                  "Falling back to a fresh run."
+              )
+              set_outputs(False)
+              raise SystemExit(0)
+
+          checkpoint_path = data.get("checkpoint_path")
+          start_epoch = data.get("epoch", 0)
+
+          if not checkpoint_path:
+              print(
+                  "::warning::Service responded 200 but no checkpoint_path "
+                  "was found. Falling back to a fresh run."
+              )
+              set_outputs(False)
+              raise SystemExit(0)
+
+          print(
+              f"Restored checkpoint: {checkpoint_path} "
+              f"(epoch {start_epoch})"
+          )
+
+          set_outputs(
+              True,
+              checkpoint_path,
+              start_epoch
+          )
+
+      # ---- Protected training/deployment job ----
       - name: Run the protected job
+        shell: python
         env:
           RESUMED: ${{ steps.restore.outputs.resumed || 'false' }}
           CHECKPOINT_PATH: ${{ steps.restore.outputs.checkpoint_path }}
           START_EPOCH: ${{ steps.restore.outputs.start_epoch || '0' }}
         run: |
-          if [ "$RESUMED" = "true" ]; then
-            echo "Resuming training from $CHECKPOINT_PATH, starting at epoch $START_EPOCH"
-          else
-            echo "Starting fresh training run from epoch 0"
-          fi
+          import os
+          import time
 
-          echo "Training/deployment job running..."
-          for i in $(seq 1 30); do
-            echo "step $i/30 (epoch offset: $START_EPOCH)..."
-            sleep 2
-          done
-          echo "Job finished normally."
+          resumed = os.environ.get("RESUMED", "false")
+          checkpoint_path = os.environ.get("CHECKPOINT_PATH", "")
+          start_epoch = os.environ.get("START_EPOCH", "0")
+
+          if resumed == "true":
+              print(
+                  f"Resuming training from {checkpoint_path}, "
+                  f"starting at epoch {start_epoch}"
+              )
+          else:
+              print("Starting fresh training run from epoch 0")
+
+          print("Training/deployment job running...")
+
+          for i in range(1, 31):
+              print(
+                  f"step {i}/30 "
+                  f"(epoch offset: {start_epoch})..."
+              )
+              time.sleep(2)
+
+          print("Job finished normally.")
