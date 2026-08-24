@@ -145,7 +145,7 @@ jobs:
               raise SystemExit(0)
 
           checkpoint_path = data.get("checkpoint_path")
-          start_epoch = data.get("epoch", 0)
+          start_epoch = data.get("resumed_epoch", 0)
 
           if not checkpoint_path:
               print(
