@@ -27,6 +27,9 @@ jobs:
     # (uvicorn app:app --port 8001) is running on this same machine
     # before triggering the workflow.
     runs-on: self-hosted
+    defaults:
+  run:
+    shell: bash
     steps:
       - name: Checkout
         uses: actions/checkout@v4
