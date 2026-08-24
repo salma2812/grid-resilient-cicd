@@ -28,8 +28,8 @@ jobs:
     # before triggering the workflow.
     runs-on: self-hosted
     defaults:
-  run:
-    shell: bash
+     run:
+      shell: bash
     steps:
       - name: Checkout
         uses: actions/checkout@v4
